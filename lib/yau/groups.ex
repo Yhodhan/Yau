@@ -43,15 +43,15 @@ defmodule Yau.Groups do
   end
 
   # -------------------------
-  #     Private functions
+  #     Helper functions
   # -------------------------
-  defp fetch_group(id) do
+  def fetch_group(id) do
     case Repo.get_by(Group, group_id: id) do
       nil ->
         {:error, :group_not_found}
 
-      car ->
-        {:ok, car}
+      group ->
+        {:ok, group}
     end
   end
 end

@@ -43,7 +43,7 @@ defmodule Yau.Vehicles do
   end
 
   # ------------------
-  # private functions
+  #  Helper functions
   # ------------------
   defp create_car(attrs) do
     %Car{}
@@ -51,7 +51,7 @@ defmodule Yau.Vehicles do
     |> Repo.insert()
   end
 
-  defp fetch_car(id) do
+  def fetch_car(id) do
     case Repo.get_by(Car, car_id: id) do
       nil ->
         {:error, :car_not_found}
