@@ -1,5 +1,6 @@
 defmodule Yau.Journeys do
   import Ecto.Query, warn: false
+  alias Yau.Vehicles.Car
   alias Yau.Groups
   alias Yau.Groups.Group
   alias Yau.Repo
@@ -10,25 +11,10 @@ defmodule Yau.Journeys do
 
   def all(), do: Repo.all(Journey)
 
-  def register_journey(group_id, car) do
-    attrs = %{"group_id" => group_id, "car_id" => car.car_id}
-
-    %Journey{}
-    |> Journey.changeset(attrs)
-    |> Repo.insert()
-
-    # udpate group status in db
-    group = Repo.get_by(Group, group_id: group_id)
-
-    group
-    |> Group.changeset_status(%{travelling: true})
-    |> Repo.update()
-  end
-
   def request_travel(group_id, people) do
     car =
       Vehicles.all()
-      |> Enum.find(fn c -> c.capacity >= people end)
+      |> Enum.find(fn c -> c.capacity >= people and not c.status end)
 
     if is_nil(car) do
       enqueue(group_id, people)
@@ -36,6 +22,30 @@ defmodule Yau.Journeys do
     else
       register_journey(group_id, car)
     end
+  end
+
+  def drop_journeys() do
+    Repo.delete_all(Journey)
+    Repo.delete_all(Group)
+  end
+
+  def register_journey(group_id, car) do
+    attrs = %{"group_id" => group_id, "car_id" => car.id}
+
+    %Journey{}
+    |> Journey.changeset(attrs)
+    |> Repo.insert()
+
+    # udpate group status in db
+    group = Repo.get_by(Group, id: group_id)
+
+    group
+    |> Group.changeset_status(%{travelling: true})
+    |> Repo.update()
+
+    car
+    |> Car.changeset_status(%{status: true})
+    |> Repo.update()
   end
 
   def active_travels?() do
@@ -95,7 +105,8 @@ defmodule Yau.Journeys do
   @impl true
   def handle_cast({:enqueue, group_id, people}, state) do
     new_state =
-      [state | %{group_id: group_id, people: people, inserted_at: DateTime.utc_now()}]
+      [%{group_id: group_id, people: people, inserted_at: DateTime.utc_now()} | state]
+      |> IO.inspect(label: "state")
       |> Enum.sort_by(fn g -> g.inserted_at end)
 
     {:noreply, new_state}
@@ -114,14 +125,14 @@ defmodule Yau.Journeys do
   end
 
   @impl true
-  def handle_info(:check_availabiliy, state) do
+  def handle_info(:check_availability, state) do
     groups = state
 
     cars = Vehicles.all()
 
     new_state = Enum.filter(groups, fn g -> not find_car?(g, cars) end)
 
-    Process.send_after(__MODULE__, :check_availability, 1000)
+    Process.send_after(__MODULE__, :check_availability, 10000)
 
     {:noreply, new_state}
   end
@@ -129,7 +140,7 @@ defmodule Yau.Journeys do
   @impl true
   def handle_info(:health, state) do
     IO.puts("i am alive master")
-    IO.puts("the queue list is: #{state}")
+    IO.inspect(state, label: "the queue list is")
 
     {:noreply, state}
   end
@@ -137,7 +148,6 @@ defmodule Yau.Journeys do
   # -------------------------
   #     Private functions
   # -------------------------
-
   defp find_car?(group, cars) do
     car = Enum.find(cars, fn c -> c.capacity >= group.people end)
 

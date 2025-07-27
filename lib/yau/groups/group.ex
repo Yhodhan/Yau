@@ -4,7 +4,8 @@ defmodule Yau.Groups.Group do
 
   schema "groups" do
     field :people, :integer
-    field :travelling, :boolean, default: :false
+    field :group_id, :integer
+    field :travelling, :boolean, default: false
 
     has_many :journeys, Yau.Journeys.Journey
 
@@ -13,9 +14,10 @@ defmodule Yau.Groups.Group do
 
   def changeset(group, attrs) do
     group
-    |> cast(attrs, [:people, :travelling])
-    |> validate_required([:people])
-    |> validate_number(:people, min: 1)
+    |> cast(attrs, [:people, :group_id, :travelling])
+    |> validate_required([:people, :group_id])
+    |> validate_number(:people, greater_than: 0)
+    |> unique_constraint(:group_id)
   end
 
   def changeset_status(group, attrs) do

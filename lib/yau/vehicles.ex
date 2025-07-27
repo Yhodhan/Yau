@@ -5,20 +5,14 @@ defmodule Yau.Vehicles do
   alias Yau.Repo
   alias Yau.Vehicles.Car
 
+  use GenServer
+
   def all(), do: Repo.all(Car)
 
-  def register_cars(cars) do
+  def register(cars) do
     # remove previous data
-    # it should check there is no ongoing journeys
-    unless Journeys.active_travels?() do
-      Repo.delete_all(Car)
-      Repo.delete_all(Journey)
-
-      cars
-      |> Enum.each(fn car -> create_car(car) end)
-    else
-      register_cars(cars)
-    end
+    register_cars(cars)
+    :ok
   end
 
   def delete_car(id) do
@@ -40,6 +34,39 @@ defmodule Yau.Vehicles do
       {:error, error} ->
         {:error, error}
     end
+  end
+
+  # ---------------
+  #  GenServer API
+  # ---------------
+
+  def start_link(initial_list \\ []),
+    do: GenServer.start_link(__MODULE__, initial_list, name: __MODULE__)
+
+  def register_cars(cars), do: GenServer.cast(__MODULE__, {:register, cars})
+
+  # ---------------------
+  #  Genserver functions
+  # ---------------------
+  #
+  @impl true
+  def init(initial_list) do
+    {:ok, initial_list}
+  end
+
+  @impl true
+  def handle_cast({:register, cars}, state) do
+    unless Journeys.active_travels?() do
+      Repo.delete_all(Car)
+      Repo.delete_all(Journey)
+
+      cars
+      |> Enum.each(fn car -> create_car(car) end)
+    else
+      register_cars(cars)
+    end
+
+    {:noreply, state}
   end
 
   # ------------------

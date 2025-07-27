@@ -18,7 +18,8 @@ defmodule Yau.Application do
       # {Yau.Worker, arg},
       # Start to serve requests, typically the last entry
       YauWeb.Endpoint,
-      Yau.Journeys
+      Yau.Journeys,
+      Yau.Vehicles
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

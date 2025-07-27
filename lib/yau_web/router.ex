@@ -14,9 +14,13 @@ defmodule YauWeb.Router do
     post "/delete", CarController, :delete
     post "/register", CarController, :register
 
+    # journeys
+    post "/journey", JourneyController, :journey
+    post "/drop_off", JourneyController, :drop_off
+    post "/locate", JourneyController, :locate
+
     # Check health status
     get "/status", HealthController, :status
-
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
