@@ -17,41 +17,30 @@ defmodule Yau.Groups do
   end
 
   def update_group(%{"group_id" => id} = attrs) do
-    case fetch_group(id) do
-      {:ok, group} ->
+    case Repo.get(Group, id) do
+      nil ->
+        {:error, :not_found}
+
+      group ->
         Group.changeset(group, attrs)
         |> Repo.update()
-
-      {:error, error} ->
-        {:error, error}
     end
   end
 
-  def delete_group(id) do
-    case fetch_group(id) do
-      {:ok, group} ->
-        Repo.delete(group)
+  def delete_group(group = %Group{}), do: Repo.delete(group)
 
-      {:error, error} ->
-        {:error, error}
+  def delete_group(id) do
+    case Repo.get(Group, id) do
+      nil ->
+        {:error, :not_found}
+
+      group ->
+        Repo.delete(group)
     end
   end
 
   def travelling?(id) do
     group = Repo.get_by!(Group, id)
     group.travelling
-  end
-
-  # -------------------------
-  #     Helper functions
-  # -------------------------
-  def fetch_group(id) do
-    case Repo.get_by(Group, group_id: id) do
-      nil ->
-        {:error, :group_not_found}
-
-      group ->
-        {:ok, group}
-    end
   end
 end

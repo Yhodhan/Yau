@@ -54,9 +54,23 @@ defmodule Yau.Journeys do
   end
 
   def drop_off(group_id) do
+    group =
+      Repo.get_by(Group, group_id: group_id)
+      |> Repo.preload(:journeys)
+
+    journey =
+      group
+      |> Map.get(:journeys)
+      |> Enum.at(0)
+
+    get_car_by_journey(journey)
+    |> Car.changeset_status(%{status: false})
+    |> Repo.update()
+
     dequeue(group_id)
 
-    Groups.delete_group(group_id)
+    # this also deletes the journey
+    Groups.delete_group(group)
   end
 
   def locate(group_id) do
@@ -106,7 +120,6 @@ defmodule Yau.Journeys do
   def handle_cast({:enqueue, group_id, people}, state) do
     new_state =
       [%{group_id: group_id, people: people, inserted_at: DateTime.utc_now()} | state]
-      |> IO.inspect(label: "state")
       |> Enum.sort_by(fn g -> g.inserted_at end)
 
     {:noreply, new_state}
@@ -148,6 +161,9 @@ defmodule Yau.Journeys do
   # -------------------------
   #     Private functions
   # -------------------------
+
+  defp get_car_by_journey(journey), do: Repo.get(Car, journey.car_id)
+
   defp find_car?(group, cars) do
     car = Enum.find(cars, fn c -> c.capacity >= group.people end)
 
