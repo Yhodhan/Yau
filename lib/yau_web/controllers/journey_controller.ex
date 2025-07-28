@@ -15,7 +15,7 @@ defmodule YauWeb.JourneyController do
       {:error, changeset} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{erros: changeset.errors})
+        |> json(%{error: changeset.errors})
     end
   end
 
@@ -29,7 +29,7 @@ defmodule YauWeb.JourneyController do
       {:error, error} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{erros: error})
+        |> json(%{error: error})
     end
   end
 
