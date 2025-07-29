@@ -5,8 +5,8 @@ defmodule YauWeb.JourneyController do
 
   def journey(conn, %{"id" => group_id, "people" => people}) do
     case Groups.register_group(%{"group_id" => group_id, "people" => people}) do
-      {:ok, group} ->
-        Journeys.request_travel(group.id, people)
+      {:ok, _group} ->
+        Journeys.request_travel(group_id, people)
 
         conn
         |> put_status(:created)
@@ -38,6 +38,7 @@ defmodule YauWeb.JourneyController do
       {:ok, :awaiting} ->
         conn
         |> put_status(:no_content)
+        |> json("")
 
       {:ok, car} ->
         conn

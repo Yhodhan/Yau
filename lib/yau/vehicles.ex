@@ -72,6 +72,7 @@ defmodule Yau.Vehicles do
   # ------------------
   #  Helper functions
   # ------------------
+
   defp create_car(attrs) do
     %Car{}
     |> Car.changeset(attrs)

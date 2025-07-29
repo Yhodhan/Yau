@@ -1,5 +1,6 @@
 defmodule Yau.Journeys do
   import Ecto.Query, warn: false
+  alias Ecto.Multi
   alias Yau.Vehicles.Car
   alias Yau.Groups
   alias Yau.Groups.Group
@@ -15,6 +16,7 @@ defmodule Yau.Journeys do
     car =
       Vehicles.all()
       |> Enum.find(fn c -> c.capacity >= people and not c.status end)
+      |> IO.inspect(label: "car available")
 
     if is_nil(car) do
       enqueue(group_id, people)
@@ -30,22 +32,14 @@ defmodule Yau.Journeys do
   end
 
   def register_journey(group_id, car) do
-    attrs = %{"group_id" => group_id, "car_id" => car.id}
+    group = Repo.get_by(Group, group_id: group_id)
+    attrs = %{"group_id" => group.id, "car_id" => car.id}
 
-    %Journey{}
-    |> Journey.changeset(attrs)
-    |> Repo.insert()
-
-    # udpate group status in db
-    group = Repo.get_by(Group, id: group_id)
-
-    group
-    |> Group.changeset_status(%{travelling: true})
-    |> Repo.update()
-
-    car
-    |> Car.changeset_status(%{status: true})
-    |> Repo.update()
+    Multi.new()
+    |> Multi.insert(:journeys, Journey.changeset(%Journey{}, attrs))
+    |> Multi.update(:groups, Group.changeset_status(group, %{travelling: true}))
+    |> Multi.update(:cars, Car.changeset_status(car, %{status: true}))
+    |> Repo.transaction()
   end
 
   def active_travels?() do
@@ -56,14 +50,15 @@ defmodule Yau.Journeys do
   def drop_off(group_id) do
     group =
       Repo.get_by(Group, group_id: group_id)
-      |> Repo.preload(:journeys)
+      |> Repo.preload(journeys: [:car])
 
-    journey =
+    car =
       group
       |> Map.get(:journeys)
       |> Enum.at(0)
+      |> Map.get(:car)
 
-    get_car_by_journey(journey)
+    car
     |> Car.changeset_status(%{status: false})
     |> Repo.update()
 
@@ -73,16 +68,18 @@ defmodule Yau.Journeys do
     Groups.delete_group(group)
   end
 
-  def locate(group_id) do
-    journey = Repo.get_by(Journey, group_id: group_id)
+  def locate(id) do
+    group = Repo.get_by(Group, group_id: id)
+
+    journey =
+      Repo.get_by(Journey, group_id: group.id)
 
     unless is_nil(journey) do
-      {:ok, car} = Vehicles.fetch_car(journey.car_id)
-      car
+      Vehicles.fetch_car_by_journey(journey)
     else
       groups = get_groups()
 
-      awaits = Enum.reduce(groups, false, fn g, acc -> acc or g.group_id == group_id end)
+      awaits = Enum.reduce(groups, false, fn g, acc -> acc or g.group_id == id end)
 
       if awaits do
         {:ok, :awaiting}
@@ -165,7 +162,7 @@ defmodule Yau.Journeys do
   defp get_car_by_journey(journey), do: Repo.get(Car, journey.car_id)
 
   defp find_car?(group, cars) do
-    car = Enum.find(cars, fn c -> c.capacity >= group.people end)
+    car = Enum.find(cars, fn c -> c.capacity >= group.people and not c.status end)
 
     case car do
       nil ->
